@@ -33,7 +33,6 @@ app.post("/merge", async (req, res) => {
   const out = "/var/www/videos/" + output_name + ".mp4";
   try {
     await downloadVideo(video1_url, v1);
-    if (!fs.existsSync(v2)) await downloadVideo(video2_url, v2);
     const cmd = "ffmpeg -i " + v1 + " -i " + v2 + ' -filter_complex "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" -c:v libx264 -c:a aac -y ' + out;
     exec(cmd, (error, stdout, stderr) => {
       fs.unlink(v1, () => {});
