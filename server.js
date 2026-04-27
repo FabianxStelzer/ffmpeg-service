@@ -1,11 +1,10 @@
 const express = require("express");
 const { exec } = require("child_process");
-const https = require("https");
-const http = require("http");
 const fs = require("fs");
 const multer = require("multer");
 const app = express();
 app.use(express.json());
+
 const storage = multer.diskStorage({
   destination: "/var/www/videos/",
   filename: (req, file, cb) => { cb(null, file.originalname); }
@@ -14,20 +13,25 @@ const upload = multer({ storage: storage });
 
 function downloadVideo(url, dest) {
   return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    function download(downloadUrl) {
-      const client = downloadUrl.startsWith("https") ? https : http;
-      client.get(downloadUrl, response => {
-        if (response.statusCode === 302 || response.statusCode === 301) {
-          file.close();
-          download(response.headers.location);
-          return;
+    const cmd = `curl -L -c /tmp/gdrive_cookies.txt -b /tmp/gdrive_cookies.txt "${url}" -o "${dest}"`;
+    exec(cmd, (error, stdout, stderr) => {
+      if (error) { reject(new Error(stderr)); return; }
+      const content = fs.readFileSync(dest, { encoding: 'utf8', flag: 'r' }).substring(0, 200);
+      if (content.includes('<html') || content.includes('<!DOCTYPE')) {
+        const confirmMatch = content.match(/confirm=([^&"]+)/);
+        if (confirmMatch) {
+          const newUrl = url + '&confirm=' + confirmMatch[1];
+          exec(`curl -L "${newUrl}" -o "${dest}"`, (err2) => {
+            if (err2) reject(new Error(err2.message));
+            else resolve();
+          });
+        } else {
+          reject(new Error('Google Drive Download fehlgeschlagen'));
         }
-        response.pipe(file);
-        file.on("finish", () => { file.close(); resolve(); });
-      }).on("error", err => { fs.unlink(dest, () => {}); reject(err); });
-    }
-    download(url);
+      } else {
+        resolve();
+      }
+    });
   });
 }
 
@@ -38,13 +42,13 @@ app.post("/upload", upload.single("file"), (req, res) => {
 
 app.post("/merge", async (req, res) => {
   const { video1_url, video2_url, output_name } = req.body;
-  if (!video1_url || !video2_url || !output_name) return res.status(400).json({ error: "Parameter fehlen" });
+  if (!video1_url || !output_name) return res.status(400).json({ error: "Parameter fehlen" });
   const v1 = "/tmp/" + output_name + "_part1.mp4";
   const v2 = "/var/www/videos/schlussteil.mp4";
   const out = "/var/www/videos/" + output_name + ".mp4";
   try {
     await downloadVideo(video1_url, v1);
-    const cmd = "ffmpeg -i " + v1 + " -i " + v2 + ' -filter_complex "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" -c:v libx264 -c:a aac -y ' + out;
+    const cmd = `ffmpeg -i "${v1}" -i "${v2}" -filter_complex "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" -c:v libx264 -c:a aac -y "${out}"`;
     exec(cmd, (error, stdout, stderr) => {
       fs.unlink(v1, () => {});
       if (error) return res.status(500).json({ error: stderr });
