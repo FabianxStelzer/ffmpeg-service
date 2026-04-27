@@ -37,7 +37,7 @@ app.post("/merge", async (req, res) => {
   const out = "/var/www/videos/" + output_name + ".mp4";
   try {
     await downloadVideo(video1_url, v1);
-    const cmd = `ffmpeg -i "${v1}" -i "${v2}" -filter_complex "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" -c:v libx264 -c:a aac -y "${out}"`;
+    const cmd = `ffmpeg -i "${v1}" -i "${v2}" -filter_complex "[0:v]scale=1280:720[v0];[v0][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" -c:v libx264 -c:a aac -y "${out}"`;
     exec(cmd, (error, stdout, stderr) => {
       fs.unlink(v1, () => {});
       if (error) return res.status(500).json({ error: stderr });
