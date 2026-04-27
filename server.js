@@ -13,24 +13,13 @@ const upload = multer({ storage: storage });
 
 function downloadVideo(url, dest) {
   return new Promise((resolve, reject) => {
-    const cmd = `curl -L -c /tmp/gdrive_cookies.txt -b /tmp/gdrive_cookies.txt "${url}" -o "${dest}"`;
+    const fileIdMatch = url.match(/id=([^&]+)/);
+    if (!fileIdMatch) { reject(new Error('Keine Google Drive ID gefunden')); return; }
+    const fileId = fileIdMatch[1];
+    const cmd = `gdown "${fileId}" -O "${dest}"`;
     exec(cmd, (error, stdout, stderr) => {
       if (error) { reject(new Error(stderr)); return; }
-      const content = fs.readFileSync(dest, { encoding: 'utf8', flag: 'r' }).substring(0, 200);
-      if (content.includes('<html') || content.includes('<!DOCTYPE')) {
-        const confirmMatch = content.match(/confirm=([^&"]+)/);
-        if (confirmMatch) {
-          const newUrl = url + '&confirm=' + confirmMatch[1];
-          exec(`curl -L "${newUrl}" -o "${dest}"`, (err2) => {
-            if (err2) reject(new Error(err2.message));
-            else resolve();
-          });
-        } else {
-          reject(new Error('Google Drive Download fehlgeschlagen'));
-        }
-      } else {
-        resolve();
-      }
+      resolve();
     });
   });
 }
