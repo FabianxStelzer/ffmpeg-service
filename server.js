@@ -41,7 +41,7 @@ app.post("/merge", async (req, res) => {
     exec(cmd, (error, stdout, stderr) => {
       fs.unlink(v1, () => {});
       if (error) return res.status(500).json({ error: stderr });
-      res.json({ success: true, video_url: "http://168.119.172.100:3000/videos/" + output_name + ".mp4" });
+res.json({ success: true, video_url: "https://videos.prozessanker.de/videos/" + output_name + ".mp4" });
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
