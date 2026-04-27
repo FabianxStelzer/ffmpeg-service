@@ -29,7 +29,7 @@ app.post("/merge", async (req, res) => {
   const { video1_url, video2_url, output_name } = req.body;
   if (!video1_url || !video2_url || !output_name) return res.status(400).json({ error: "Parameter fehlen" });
   const v1 = "/tmp/" + output_name + "_part1.mp4";
-  const v2 = "/tmp/schlussteil.mp4";
+  const v2 = '/var/www/videos/schlussteil.mp4';
   const out = "/var/www/videos/" + output_name + ".mp4";
   try {
     await downloadVideo(video1_url, v1);
